@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ревью · Patch-Win10Downgrade.ps1 v4.2</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;600;700;900&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0B0E; --panel:#101014; --line:rgba(255,255,255,.08);
+    --ink:#E9E6DF; --mut:#8B8A94;
+    --red:#FF5C5C; --amber:#FFB020; --low:#7C8CA8; --violet:#C084FC; --green:#35D07F;
+  }
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:'Manrope',sans-serif;overflow-x:hidden}
+  .font-display{font-family:'Unbounded',sans-serif}
+  .font-mono{font-family:'JetBrains Mono',monospace}
+  ::selection{background:var(--red);color:#0B0B0E}
+  ::-webkit-scrollbar{width:10px}
+  ::-webkit-scrollbar-track{background:#0B0B0E}
+  ::-webkit-scrollbar-thumb{background:#26262e;border:3px solid #0B0B0E;border-radius:8px}
+  .grain{position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  .keyline{border:1px solid var(--line)}
+  .card{background:var(--panel);border:1px solid var(--line);transition:border-color .3s, transform .3s;position:relative}
+  .card:hover{border-color:rgba(255,255,255,.18)}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--sev,#555);opacity:.9}
+  .chip{border:1px solid var(--line);border-radius:999px;padding:.45rem 1.1rem;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:.25s;user-select:none}
+  .chip:hover{border-color:rgba(255,255,255,.3)}
+  .chip.on{background:var(--ink);color:#0B0B0E;border-color:var(--ink)}
+  .sev-dot{width:8px;height:8px;border-radius:99px;background:var(--sev);box-shadow:0 0 12px var(--sev)}
+  .fix pre{background:#08080B;border:1px solid var(--line)}
+  details>summary{list-style:none;cursor:pointer}
+  details>summary::-webkit-details-marker{display:none}
+  details[open] .car{transform:rotate(180deg)}
+  .car{transition:transform .3s}
+  .navlink{position:relative;transition:color .25s}
+  .navlink::after{content:'';position:absolute;left:0;bottom:-4px;height:1px;width:0;background:var(--red);transition:width .3s}
+  .navlink:hover{color:var(--ink)} .navlink:hover::after{width:100%}
+  .num-ghost{-webkit-text-stroke:1px rgba(255,255,255,.14);color:transparent}
+  .marq{display:flex;gap:3rem;white-space:nowrap;animation:mar 28s linear infinite}
+  @keyframes mar{to{transform:translateX(-50%)}}
+  .tk{cursor:pointer}
+  .tk .box{width:20px;height:20px;border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;transition:.2s;flex:none;margin-top:2px}
+  .tk.done .box{background:var(--green);border-color:var(--green)}
+  .tk.done .lbl{color:var(--mut);text-decoration:line-through;text-decoration-color:rgba(53,208,127,.6)}
+  .bar{height:6px;background:rgba(255,255,255,.06);overflow:hidden}
+  .bar>i{display:block;height:100%;width:0}
+  .outline-txt{-webkit-text-stroke:1px rgba(255,255,255,.35);color:transparent}
+  .cursor{position:fixed;width:10px;height:10px;background:var(--red);border-radius:99px;pointer-events:none;z-index:60;mix-blend-mode:difference;transform:translate(-50%,-50%);transition:width .2s,height .2s}
+  @media (hover:none){.cursor{display:none}}
+</style>
+</head>
+<body class="antialiased">
+<div class="grain"></div>
+<div class="cursor" id="cursor"></div>
+
+<!-- progress -->
+<div class="fixed top-0 left-0 h-[2px] bg-[--red] z-[70] w-0" id="prog"></div>
+
+<!-- NAV -->
+<header class="fixed top-0 inset-x-0 z-40 backdrop-blur-md bg-[#0B0B0E]/70 border-b border-[--line]">
+  <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+    <a href="#top" class="font-mono text-xs tracking-widest text-[--mut]">// CODE&nbsp;REVIEW&nbsp;·&nbsp;v4.2</a>
+    <nav class="hidden md:flex gap-8 text-xs font-semibold tracking-wider text-[--mut]">
+      <a class="navlink" href="#concept">01 КОНЦЕПТ</a>
+      <a class="navlink" href="#bugs">02 БАГИ</a>
+      <a class="navlink" href="#good">03 ХОРОШО</a>
+      <a class="navlink" href="#todo">04 ФИКС</a>
+    </nav>
+    <a href="Patch-Win10Downgrade-v5.ps1" download class="flex items-center gap-2 font-mono text-[10px] tracking-widest px-3 py-1.5 border border-[--green]/50 text-[--green] hover:bg-[--green] hover:text-[#0B0B0E] transition-colors">
+      <i data-lucide="download" class="w-3.5 h-3.5"></i>СКАЧАТЬ&nbsp;v5.0
+    </a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section id="top" class="relative min-h-screen flex flex-col justify-center pt-24 pb-16 overflow-hidden">
+  <div class="absolute -top-40 -right-40 w-[38rem] h-[38rem] rounded-full opacity-20 blur-[120px]" style="background:radial-gradient(circle,#FF5C5C,transparent 65%)"></div>
+  <div class="absolute -bottom-60 -left-40 w-[34rem] h-[34rem] rounded-full opacity-15 blur-[120px]" style="background:radial-gradient(circle,#C084FC,transparent 65%)"></div>
+
+  <div class="max-w-7xl mx-auto px-6 w-full relative">
+    <div class="hero-el flex items-center gap-3 font-mono text-[11px] tracking-[.25em] text-[--mut] mb-8">
+      <i data-lucide="terminal" class="w-4 h-4 text-[--red]"></i> PATCH-WIN10DOWNGRADE.PS1 · v4.2 · ~700 СТРОК
+    </div>
+    <h1 class="font-display font-900 leading-[.95] text-[13vw] md:text-[8.5rem]">
+      <span class="hero-el block font-black">МИНУСЫ</span>
+      <span class="hero-el block outline-txt font-black">КОДА</span>
+      <span class="hero-el block font-light text-[6vw] md:text-[3.2rem] mt-4 text-[--mut]">даунгрейд 11&nbsp;→&nbsp;10 через спуф билда</span>
+    </h1>
+
+    <div class="hero-el mt-12 grid md:grid-cols-3 gap-4">
+      <div class="keyline p-5 bg-[--panel]">
+        <div class="flex items-center gap-2 text-[--violet] font-mono text-xs mb-1"><i data-lucide="flask-conical" class="w-4 h-4"></i>КОНЦЕПТУАЛЬНЫЕ</div>
+        <div class="font-display text-5xl font-black counter" data-n="5">0</div>
+      </div>
+      <div class="keyline p-5 bg-[--panel]">
+        <div class="flex items-center gap-2 text-[--red] font-mono text-xs mb-1"><i data-lucide="bug" class="w-4 h-4"></i>БАГИ / РИСКИ</div>
+        <div class="font-display text-5xl font-black counter" data-n="18">0</div>
+      </div>
+      <div class="keyline p-5 bg-[--panel]">
+        <div class="flex items-center gap-2 text-[--green] font-mono text-xs mb-1"><i data-lucide="wrench" class="w-4 h-4"></i>ДОРАБОТКИ</div>
+        <div class="font-display text-5xl font-black counter" data-n="8">0</div>
+      </div>
+    </div>
+
+    <div class="hero-el mt-10 max-w-2xl keyline bg-[--panel] p-5 flex items-start gap-4 border-l-2 !border-l-[--green]">
+      <i data-lucide="badge-check" class="w-6 h-6 text-[--green] flex-none mt-0.5"></i>
+      <div class="text-sm leading-relaxed">
+        <span class="font-display font-semibold text-[--green]">ВСЁ ИСПРАВЛЕНО → v5.0</span><br>
+        <span class="text-[--mut]">Полная переписка скрипта: все 18 багов закрыты, чек-лист из секции 04 реализован.
+        <a class="underline decoration-[--green]/50 underline-offset-4 hover:text-[--green] transition-colors" href="Patch-Win10Downgrade-v5.ps1" download>Скачать Patch-Win10Downgrade-v5.ps1</a></span>
+      </div>
+    </div>
+
+    <p class="hero-el mt-8 max-w-2xl text-[--mut] leading-relaxed">
+      Вердикт сразу: <span class="text-[--ink] font-semibold">инженерно скрипт добротный</span> — транскрипт в try/finally, защита от межплатформенного даунгрейда, верификация до коммита.
+      Проблемы двух уровней: <span class="text-[--red] font-semibold">сама идея</span> (спуф реестра против compat-сканов Setup — лотерея с серой кнопкой) и <span class="text-[--amber] font-semibold">детали реализации</span> — места проверяются поздно, копии не верифицируются хэшем, язык образа не сравнивается.
+    </p>
+  </div>
+
+  <!-- marquee -->
+  <div class="absolute bottom-6 inset-x-0 overflow-hidden opacity-40">
+    <div class="marq font-mono text-[11px] tracking-[.3em] text-[--mut]">
+      <span>UNSUPPORTED SCENARIO</span><span>·</span><span class="text-[--red]">KEEP APPS GREY</span><span>·</span><span>SETUPCOMPLETE WINDOW</span><span>·</span><span class="text-[--violet]">WIM METADATA LIES</span><span>·</span><span>NO HASH VERIFY</span><span>·</span><span class="text-[--amber]">APPD MIGRATION</span><span>·</span>
+      <span>UNSUPPORTED SCENARIO</span><span>·</span><span class="text-[--red]">KEEP APPS GREY</span><span>·</span><span>SETUPCOMPLETE WINDOW</span><span>·</span><span class="text-[--violet]">WIM METADATA LIES</span><span>·</span><span>NO HASH VERIFY</span><span>·</span><span class="text-[--amber]">APPD MIGRATION</span><span>·</span>
+    </div>
+  </div>
+</section>
+
+<!-- 01 CONCEPT -->
+<section id="concept" class="relative py-24 border-t border-[--line]">
+  <div class="max-w-7xl mx-auto px-6">
+    <div class="flex items-end gap-6 mb-14 reveal">
+      <span class="font-display num-ghost text-[6rem] md:text-[8rem] leading-none font-black">01</span>
+      <div class="pb-3">
+        <div class="font-mono text-xs tracking-[.25em] text-[--violet] mb-2">КОНЦЕПТ-РИСКИ</div>
+        <h2 class="font-display text-2xl md:text-4xl font-bold">Это не вылечить никаким рефакторингом</h2>
+      </div>
+    </div>
+    <div id="conceptGrid" class="grid md:grid-cols-2 gap-4"></div>
+  </div>
+</section>
+
+<!-- 02 BUGS -->
+<section id="bugs" class="relative py-24 border-t border-[--line]">
+  <div class="max-w-7xl mx-auto px-6">
+    <div class="flex items-end gap-6 mb-10 reveal">
+      <span class="font-display num-ghost text-[6rem] md:text-[8rem] leading-none font-black">02</span>
+      <div class="pb-3">
+        <div class="font-mono text-xs tracking-[.25em] text-[--red] mb-2">БАГИ И РИСКИ РЕАЛИЗАЦИИ</div>
+        <h2 class="font-display text-2xl md:text-4xl font-bold">18 замечаний по коду</h2>
+      </div>
+    </div>
+
+    <!-- severity bars -->
+    <div class="grid grid-cols-3 gap-4 mb-10 reveal font-mono text-[11px]">
+      <div><div class="flex justify-between mb-1 text-[--red]"><span>HIGH</span><span>8</span></div><div class="bar"><i style="background:var(--red)" data-w="44%"></i></div></div>
+      <div><div class="flex justify-between mb-1 text-[--amber]"><span>MEDIUM</span><span>6</span></div><div class="bar"><i style="background:var(--amber)" data-w="33%"></i></div></div>
+      <div><div class="flex justify-between mb-1 text-[--low]"><span>LOW</span><span>4</span></div><div class="bar"><i style="background:var(--low)" data-w="22%"></i></div></div>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-8 reveal" id="filters">
+      <button class="chip on" data-f="all">Все · 18</button>
+      <button class="chip" data-f="high">High · 8</button>
+      <button class="chip" data-f="med">Medium · 6</button>
+      <button class="chip" data-f="low">Low · 4</button>
+    </div>
+
+    <div id="bugGrid" class="grid md:grid-cols-2 gap-4"></div>
+  </div>
+</section>
+
+<!-- 03 GOOD -->
+<section id="good" class="relative py-24 border-t border-[--line]">
+  <div class="max-w-7xl mx-auto px-6">
+    <div class="flex items-end gap-6 mb-14 reveal">
+      <span class="font-display num-ghost text-[6rem] md:text-[8rem] leading-none font-black">03</span>
+      <div class="pb-3">
+        <div class="font-mono text-xs tracking-[.25em] text-[--green] mb-2">ДЛЯ БАЛАНСА</div>
+        <h2 class="font-display text-2xl md:text-4xl font-bold">Что сделано хорошо</h2>
+      </div>
+    </div>
+    <div id="goodGrid" class="grid md:grid-cols-3 gap-4"></div>
+  </div>
+</section>
+
+<!-- 04 FIX -->
+<section id="todo" class="relative py-24 border-t border-[--line]">
+  <div class="max-w-7xl mx-auto px-6">
+    <div class="flex items-end gap-6 mb-10 reveal">
+      <span class="font-display num-ghost text-[6rem] md:text-[8rem] leading-none font-black">04</span>
+      <div class="pb-3">
+        <div class="font-mono text-xs tracking-[.25em] text-[--amber] mb-2">ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ</div>
+        <h2 class="font-display text-2xl md:text-4xl font-bold">Патч-лист → <span class="text-[--green]">выполнен в v5.0</span></h2>
+        <p class="text-[--mut] text-sm mt-2 max-w-xl">Все 8 пунктов реализованы в <span class="font-mono text-[--green]">Patch-Win10Downgrade-v5.ps1</span> (кнопка скачивания наверху). Отмечай выполненное — прогресс живёт в браузере.</p>
+      </div>
+    </div>
+    <div class="reveal mb-6 flex items-center gap-4 font-mono text-xs">
+      <div class="bar flex-1"><i id="todoBar" style="background:var(--green)"></i></div>
+      <span id="todoPct" class="text-[--green]">0%</span>
+    </div>
+    <div id="todoList" class="grid gap-3"></div>
+  </div>
+</section>
+
+<!-- FOOT -->
+<footer class="border-t border-[--line] py-20">
+  <div class="max-w-7xl mx-auto px-6 text-center">
+    <p class="font-display text-xl md:text-3xl font-light leading-snug max-w-3xl mx-auto reveal">
+      «Скрипт аккуратный. <span class="text-[--red]">Рискован не код — рискован сам манёвр.</span><br>
+      Прогоняй на VM с снапшотом, прежде чем трогать боевую систему.»
+    </p>
+    <div class="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-[--mut] font-mono text-[11px] tracking-widest">
+      <span>REVIEW v4.2</span><span>·</span>
+      <a href="Patch-Win10Downgrade-v5.ps1" download class="text-[--green] hover:opacity-80 transition-opacity">FIXED → СКАЧАТЬ v5.0</a>
+      <span>·</span><a href="#top" class="hover:text-[--ink] transition-colors">НАВЕРХ ↑</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============ DATA ============ */
+const SEV = {
+  concept:{c:'#C084FC', t:'КОНЦЕПТ'},
+  high:{c:'#FF5C5C', t:'HIGH'},
+  med:{c:'#FFB020', t:'MEDIUM'},
+  low:{c:'#7C8CA8', t:'LOW'},
+  good:{c:'#35D07F', t:'OK'},
+};
+
+const concept = [
+ {t:'Спуф реестра ≠ «сохранить всё»', d:'Setup принимает решение о сохранении данных по результатам compat-сканов (издание, язык, архитектура, канал лицензии, а не только CurrentBuild из SOFTWARE-куста). Часть проверок читает свои данные и метаданные — там скрипт ничего патчить не может. Итог: кнопка «Сохранить личные файлы и приложения» может остаться серой, и дальше — установка «вчистую». Это главный минус всей затеи.'},
+ {t:'WIM-метаданные продолжают говорить правду', d:'Реестр внутри смонтированного образа патчится, а блок <IMAGE><VERSION> в XML-манифесте самого WIM остаётся 10.0.19045.x. Всё, что читает образ через Get-WindowsImage / wimapi (включая части логики Setup), видит несогласованность: реестр кричит «22631», метаданные — «19045».'},
+ {t:'Франкенштейн после миграции', d:'In-place «обновление» тащит user-state, AppX-регистрации, Start-layout и настройки, созданные компонентами Windows 11, на бинарники Windows 10. Widgets, Terminal, SecHealthUI, новые UWP-пакеты под билд 22631 на 19045 не взлетают — пустые плитки, битые приложения, мёртвый Start. И это если Setup вообще согласился.'},
+ {t:'HostMatch-подделка отпечатков', d:'Копирование BuildLab/BuildBranch хоста (ni_release 22631) в образ vb_release-ветки создаёт невозможный отпечаток: ветка и билд из разных поколений. ProductName образа становится «Windows 11 Pro» на файлах Windows 10. Диагностикам и сервисингу такое несоответствие хорошо заметно.'},
+ {t:'Окно риска до SetupComplete', d:'Между финалом установки и отработкой SetupComplete.cmd система числится билдом хоста. Принудительный ребут, клинч OOBE или сбой питания — и ты остаёшься с системой, где реестр говорит «22631», а бинарники — «19045». Windows Update в таком состоянии предсказуемо предложит Win11-обновления поверх Win10-файлов.'},
+];
+
+const bugs = [
+ {s:'high', t:'Проверка места — после самого тяжёлого шага', d:'Экспорт ESD→WIM (все индексы, Compress:fast даёт рост x2–x4 от объёма ESD) выполняется до расчёта $wimLen и до всех проверок свободного места. На тесном диске скрипт сначала забьёт его под завязку, а потом честно умрёт.', code:'$srcImages = Get-WindowsImage ...  # экспорт поехал\n# ... а $workFree и $needWithBackup считаются ниже', fix:'Pre-flight: оцени требуемое место ДО экспорта (size ESD × 3.5 + 12 GB) и умри раньше.'},
+ {s:'high', t:'Не проверяется язык образа', d:'Типовая причина серой кнопки — несовпадение UILanguage хоста и образа (ru-RU vs en-US). Скрипт сравнивает EditionID и архитектуру, но про язык молчит. Диагностировать «почему серое» будет нечем.', fix:'Сравни $hostCv и куст-образ на предмет UILanguage / InstallLanguage (тот же CurrentVersion) до спуфа.'},
+ {s:'high', t:'Копия на USB без верификации хэша', d:'install.wim на 6–10 ГБ копируется на флешку Copy-Item’ом и всё. Флешки банально бьют большие файлы — битый WIM всплывёт в середине Setup. Бэкап хэш считает, но хэш никуда не пишет и ни с чем не сверяет: чисто декоративный ему вывод.', fix:'Get-FileHash источника == Get-FileHash $dst после копии; несовпадение → W-Die. Хэш бэкапа класть в .sha256 рядом.'},
+ {s:'high', t:'Бэкап «по существованию»', d:'Если прошлый запуск умер посреди Copy-Item в $WimPath.bak, все последующие запуски будут считать обрезанный файл валидной резервной копией («Бэкап уже существует, пропускаю»). Откат из такого бэкапа — из мусора.', code:'if (-not (Test-Path -LiteralPath $bak)) { Copy-Item ... }\nelse { W-Warn "Бэкап уже существует, пропускаю." }', fix:'Храни манифест (размер+SHA256) и верифицируй существующий .bak, а не факт его наличия.'},
+ {s:'high', t:'Move-Item -Force на существующий prepatch.bak', d:'В Disable-FileIfExist ты аккуратно сносишь старый .disabled перед перемещением, а для $dst.prepatch.bak — нет. В Windows PowerShell 5.1 Move-Item в существующий файл падает («already exists») даже с -Force. Второй запуск с -PrepUsb умирает на ровном месте.', fix:'Тот же паттерн: if (Test-Path "$dst.prepatch.bak") { Remove-Item ... } перед Move-Item.'},
+ {s:'high', t:'$imgInfo.Architecture vs число — неравные типы', d:'Get-HostArchCode возвращает числа 0/9/12, а Get-WindowsImage (DISM-модуль) возвращает Architecture объектом/строкой (в зависимости от версии модуля — не int). Если типы не совпадут, условие -ne истинно всегда → скрипт валится с «архитектура не совпадает» даже на родном образе. Проверь фактический тип на своей машине.', fix:'Нормализуй обе стороны к строке: (\"$($imgInfo.Architecture)\" -match \'x64|AMD64|9\').'},
+ {s:'high', t:'Verify-куст грузится без пред-unload', d:'Для WimPatchHive есть превентивный reg unload, для WimVerifyHive — нет. Упавший прошлый прогон оставил куст залоченным → reg load $vHive упадёт с «already exists», хотя ты в безобидной DeepVerify-ветке.', fix:'Invoke-Tool reg.exe @("unload", $vHive) -AllowFail перед load — как для основного куста.'},
+ {s:'high', t:'Повторные запуски безвозвратно жгут .disabled', d:'Disable-FileIfExist / Remove-SwmArtifacts: Remove-Item старого .disabled перед новым перемещением = тихое уничтожение единственной копии оригинального appraiserres.dll / ei.cfg. Сценарий Sanitize/Rename нельзя откатить к заводу.', fix:'Версионируй: appraiserres.dll.disabled.001 / .002, либо копируй оригинал в %TEMP%\\Win10Downgrade\\quarantine.'},
+
+ {s:'med', t:'-WhatIf перекрывает common-параметр', d:'Switch с именем WhatIf конфликтует по смыслу с автоматическим -WhatIf ShouldProcess. Работает только потому, что SupportsShouldProcess не объявлен. Запутает любого, кто привык к семантике PowerShell. Переименуй в -DryRun.'},
+ {s:'med', t:'exit 1 внутри цикла индексов', d:'W-Die на одном индексе гасит весь скрипт — остальные индексы не патчатся, но WIM уже частично изменён (предыдущие коммиты сохранены). Состояние «наполовину пропатчено» без явного резюме. Добавь -ContinueOnError или явный отчёт, какие индексы закоммичены.'},
+ {s:'med', t:'Get-DriveFree = null → ложный FAIL', d:'Для UNC-путей Split-Path -Qualifier вернёт null → $workFree = $null. В PS `$null -lt X` == True → BackupMode=Always умрёт с «недостаточно места» на пустом сетевом диске. Гард $usbFree у тебя есть, а для workFree — нет.', fix:'if ($null -ne $workFree -and $workFree -lt $need) {...} — та же защита, что у usbFree.'},
+ {s:'med', t:'Stop-Transcript в finally без защиты', d:'Если Start-Transcript не поднялся (прав/места на TEMP нет), исключение Stop-Transcript в finally замаскирует исходную ошибку и сломает код выхода. Оберни в try/catch или -ErrorAction SilentlyContinue.'},
+ {s:'med', t:'DeepVerify монтирует read-write', d:'Проверка после коммита требует только чтения, а /Mount-Wim без /ReadOnly — это и медленнее, и риск (DISM может что-то «пометить» в образе). DeepVerify и так удваивает время — дай ему /ReadOnly.'},
+ {s:'med', t:'Имя кустов жёстко зашито', d:'WimPatchHive / WimVerifyHive — константы. Два параллельных прогона скрипта (или повисший процесс) гарантированно конфликтуют. Ты уже генеришь GUID для каталогов монтирования — сделай то же для имён кустов.'},
+
+ {s:'low', t:'Магическая 3800 в Split-Image', d:'Размер части SWM зашит литералом. FAT32-предел 4096 МБ минус запас, но на некоторых флешках/тулчейнах хочется другое значение. Вынеси в параметр -SwmSize MB.'},
+ {s:'low', t:'Out-String хоронит прогресс DISM', d:'Invoke-Tool глотает весь вывод в строку. На экспорте 8+ ГБ скрипт молчит минутами. Верни %% прогресса (DISM пишет его в stdout) или мигающий спиннер в цикле, иначе «завис» — первая мысль пользователя.'},
+ {s:'low', t:'CleanupOnly чистит не всё', d:'Убираются только DISM-mountpoints. Зависшие кусты WimPatchHive/WimVerifyHive, каталоги M_*/V_* и Win10DowngradeWork — остаются. Режим называется Cleanup, пусть чистит всё своё.'},
+ {s:'low', t:'$EiEdition без валидации', d:'Любой опечаткой в EditionID (Profesional) Setup молча игнорирует ei.cfg. ValidateSet по реально присутствующим в образе изданиям (читай из Get-WindowsImage) — бесплатная страховка.'},
+];
+
+const good = [
+ {t:'try/finally + транскрипт', d:'Лог гарантированно закрывается при любом сценарии — редкий уровень дисциплины для самопального патча.'},
+ {t:'Защита от межплатформенного даунгрейда с -Force', d:'Жёсткий стоп на 11→10 без явного согласия. Осознанный выбор вместо молчаливого суицида.'},
+ {t:'Верификация до коммита', d:'Каждый reg add перечитывается из куста до /Commit — «записал ≠ записалось» ловится на месте.'},
+ {t:'Неубиваемый оригинал SetupComplete', d:'Чужой SetupComplete.cmd аккуратно откладывается в .downgrade_orig и вызывается обратно — уважение к чужому коду.'},
+ {t:'Cleanup-режим зомби-монтирований', d:'Отдельный -CleanupOnly для разгребания DISM-зависаний — то, что нужно в 2 часа ночи.'},
+ {t:'Честные ворнинги пользователю', d:'Антивирус про reg unload, про /DynamicUpdate disable, про серую кнопку «остановись» — скрипт не врёт о рисках.'},
+];
+
+const todo = [
+ {t:'Pre-flight до всех тяжёлых операций: место (ESD × 3.5 + 12 ГБ), pending-reboot, DISM-здоровье (/Cleanup-Image /CheckHealth)'},
+ {t:'Сравнение UILanguage хост ↔ образ до спуфа + явный FAIL с подсказкой'},
+ {t:'SHA256-верификация после Copy-Item на USB и после создания .bak; манифест рядом с бэкапом'},
+ {t:'Идемпотентность вторых прогонов: prepatch.bak, .disabled-версии, куст verify-hive'},
+ {t:'Нормализация типов Architecture (строка↔код), тест на твоём DISM-модуле'},
+ {t:'-WhatIf → -DryRun; уникальные имена кустов через GUID; DeepVerify с /ReadOnly'},
+ {t:'Режим -ContinueOnError с финальной таблицей: какие индексы закоммичены, какие нет'},
+ {t:'CleanupOnly добивает всё: кусты, M_*/V_* каталоги, рабочую папку, транскрипт-стоп в try/catch'},
+];
+
+/* ============ RENDER ============ */
+const esc = s => s;
+function card(html, sev){ return html; }
+
+const cg = document.getElementById('conceptGrid');
+concept.forEach((x,i)=>{
+  const el=document.createElement('div');
+  el.className='card p-6 md:p-8 reveal';
+  el.style.setProperty('--sev',SEV.concept.c);
+  el.innerHTML=`
+    <div class="flex items-start justify-between gap-4">
+      <span class="font-display text-[--violet]/30 text-4xl font-black">C${i+1}</span>
+      <span class="font-mono text-[10px] tracking-widest px-2 py-1 border border-[--violet]/40 text-[--violet]">${SEV.concept.t}</span>
+    </div>
+    <h3 class="font-display text-lg font-semibold mt-3 leading-snug">${x.t}</h3>
+    <p class="text-[--mut] text-sm leading-relaxed mt-3">${x.d}</p>`;
+  cg.appendChild(el);
+});
+
+const bg = document.getElementById('bugGrid');
+function renderBugs(f){
+  bg.innerHTML='';
+  bugs.forEach((x,i)=>{
+    if(f!=='all'&&x.s!==f)return;
+    const sev=SEV[x.s];
+    const el=document.createElement('div');
+    el.className='card p-6 fix';
+    el.style.setProperty('--sev',sev.c);
+    el.style.opacity=0; el.style.transform='translateY(18px)';
+    el.innerHTML=`
+      <div class="flex items-center justify-between gap-4 mb-3">
+        <div class="flex items-center gap-2"><span class="sev-dot" style="--sev:${sev.c}"></span>
+          <span class="font-mono text-[10px] tracking-widest" style="color:${sev.c}">${sev.t}</span></div>
+        <span class="font-mono text-[10px] text-[--mut]">#${String(i+1).padStart(2,'0')}</span>
+      </div>
+      <h3 class="font-semibold text-base leading-snug">${x.t}</h3>
+      <p class="text-[--mut] text-sm leading-relaxed mt-2">${x.d}</p>
+      ${x.code?`<pre class="font-mono text-[11px] text-[--mut] mt-4 p-4 overflow-x-auto whitespace-pre-wrap"><code></code></pre>`:''}
+      ${x.fix?`
+      <details class="mt-4">
+        <summary class="flex items-center gap-2 font-mono text-[11px] tracking-widest text-[--green] hover:opacity-80">
+          <i data-lucide="wrench" class="w-3.5 h-3.5"></i> КАК ЧИНИТЬ <i data-lucide="chevron-down" class="w-3.5 h-3.5 car"></i>
+        </summary>
+        <div class="mt-3 text-sm text-[--ink]/80 leading-relaxed border-l-2 border-[--green]/40 pl-4">${x.fix}</div>
+      </details>`:''}`;
+    if(x.code) el.querySelector('code').textContent = x.code;
+    bg.appendChild(el);
+    gsap.to(el,{opacity:1,y:0,duration:.5,delay:.04*bg.children.length,ease:'power2.out'});
+  });
+  lucide.createIcons();
+}
+renderBugs('all');
+document.getElementById('filters').addEventListener('click',e=>{
+  const b=e.target.closest('.chip'); if(!b)return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  b.classList.add('on'); renderBugs(b.dataset.f);
+});
+
+const gg=document.getElementById('goodGrid');
+good.forEach((x,i)=>{
+  const el=document.createElement('div');
+  el.className='card p-6 reveal';
+  el.style.setProperty('--sev',SEV.good.c);
+  el.innerHTML=`
+    <i data-lucide="check-circle-2" class="w-6 h-6 text-[--green] mb-3"></i>
+    <h3 class="font-semibold leading-snug">${x.t}</h3>
+    <p class="text-[--mut] text-sm leading-relaxed mt-2">${x.d}</p>`;
+  gg.appendChild(el);
+});
+
+/* todo */
+const tl=document.getElementById('todoList');
+const LS='w10rev_todo'; let done=new Set(JSON.parse(localStorage.getItem(LS)||'[]'));
+function save(){localStorage.setItem(LS,JSON.stringify([...done])); updTodo();}
+function updTodo(){
+  const p=Math.round(done.size/todo.length*100);
+  document.getElementById('todoBar').style.width=p+'%';
+  document.getElementById('todoPct').textContent=p+'%';
+}
+todo.forEach((x,i)=>{
+  const el=document.createElement('div');
+  el.className='tk reveal flex items-start gap-3 p-4 keyline bg-[--panel] hover:border-white/20 transition-colors'+(done.has(i)?' done':'');
+  el.innerHTML=`<div class="box"><i data-lucide="check" class="w-3.5 h-3.5 text-[#0B0B0E] ${done.has(i)?'':'opacity-0'}"></i></div>
+    <div><span class="font-mono text-[10px] text-[--mut] mr-2">${String(i+1).padStart(2,'0')}</span><span class="lbl text-sm leading-relaxed">${x.t}</span></div>`;
+  el.addEventListener('click',()=>{
+    done.has(i)?done.delete(i):done.add(i);
+    el.classList.toggle('done'); el.querySelector('.box i').classList.toggle('opacity-0'); save();
+  });
+  tl.appendChild(el);
+});
+updTodo();
+
+/* ============ FX ============ */
+lucide.createIcons();
+gsap.registerPlugin(ScrollTrigger);
+gsap.from('.hero-el',{opacity:0,y:40,duration:.9,stagger:.09,ease:'power3.out',delay:.15});
+gsap.utils.toArray('.reveal').forEach(el=>{
+  gsap.from(el,{opacity:0,y:30,duration:.7,ease:'power2.out',
+    scrollTrigger:{trigger:el,start:'top 88%'}});
+});
+document.querySelectorAll('.counter').forEach(c=>{
+  ScrollTrigger.create({trigger:c,start:'top 90%',once:true,onEnter:()=>{
+    gsap.to(c,{innerText:+c.dataset.n,duration:1.4,snap:{innerText:1},ease:'power2.out'});
+  }});
+});
+document.querySelectorAll('.bar>i').forEach(b=>{
+  ScrollTrigger.create({trigger:b,start:'top 92%',once:true,onEnter:()=>{
+    b.style.transition='width 1.2s cubic-bezier(.22,1,.36,1)'; b.style.width=b.dataset.w||b.style.width;
+  }});
+});
+window.addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  document.getElementById('prog').style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';
+});
+const cur=document.getElementById('cursor');
+window.addEventListener('mousemove',e=>{cur.style.left=e.clientX+'px';cur.style.top=e.clientY+'px';});
+document.addEventListener('mouseover',e=>{
+  const hot=e.target.closest('a,button,.chip,summary,.tk');
+  cur.style.width=hot?'26px':'10px'; cur.style.height=hot?'26px':'10px';
+});
+</script>
+</body>
+</html>
